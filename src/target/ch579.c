@@ -117,32 +117,21 @@ bool ch579_probe(target_s *target)
 
     target->driver = "CH579";
 
-    // this has to be probed now, because target_reset in target_enter_flash_mode will break it
-    uint8_t glob_cfg_info = target_mem_read8(target, 0x40001045);
-    DEBUG_INFO("asdf %02x\n", glob_cfg_info);
-    if (glob_cfg_info & (1 << 5))
-    {
-        DEBUG_ERROR("Flash operations not permitted if bootloader is enabled!\n");
-	    tc_printf(target, "Flash operations not permitted if bootloader is enabled!\n");
+    target_flash_s *f = calloc(1, sizeof(*f));
+    if (!f) { /* calloc failed: heap exhaustion */
+        DEBUG_ERROR("calloc: failed in %s\n", __func__);
+        return false;
     }
-    else
-    {
-        target_flash_s *f = calloc(1, sizeof(*f));
-        if (!f) { /* calloc failed: heap exhaustion */
-            DEBUG_ERROR("calloc: failed in %s\n", __func__);
-            return false;
-        }
-        f->start = 0;
-        f->length = 0x3f000;
-        f->blocksize = 512;
-        f->writesize = 4;
-        f->erase = ch579_flash_erase;
-        f->write = ch579_flash_write;
-        f->prepare = ch579_flash_prepare;
-        f->done = ch579_flash_done;
-        f->erased = 0xff;
-        target_add_flash(target, f);
-    }
+    f->start = 0;
+    f->length = 0x3f000;
+    f->blocksize = 512;
+    f->writesize = 4;
+    f->erase = ch579_flash_erase;
+    f->write = ch579_flash_write;
+    f->prepare = ch579_flash_prepare;
+    f->done = ch579_flash_done;
+    f->erased = 0xff;
+    target_add_flash(target, f);
 
     target_add_ram(target, 0x20000000, 0x8000);
     target_add_commands(target, ch579_cmd_list, target->driver);
